@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Reserva - Sistema de Reservas</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h1 class="form-title">Nova Reserva</h1>
+            
+            <div id="alert" class="alert" style="display: none;"></div>
+            
+            <form id="reserva-form">
+                <div class="form-group">
+                    <label for="cliente_id">Cliente *</label>
+                    <select id="cliente_id" name="cliente_id" required>
+                        <option value="">Selecione um cliente</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="data_reserva">Data da Reserva *</label>
+                    <input type="date" id="data_reserva" name="data_reserva" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="hora_reserva">Hora da Reserva *</label>
+                    <input type="time" id="hora_reserva" name="hora_reserva" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="numero_pessoas">Número de Pessoas *</label>
+                    <input type="number" id="numero_pessoas" name="numero_pessoas" min="1" max="20" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="observacoes">Observações</label>
+                    <textarea id="observacoes" name="observacoes" placeholder="Observações adicionais (opcional)"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="ativa">Ativa</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="concluida">Concluída</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn" id="submit-btn">
+                        <span id="submit-text">Criar Reserva</span>
+                        <div id="submit-loading" class="loading" style="display: none;"></div>
+                    </button>
+                    <a href="/" class="btn btn-secondary">Voltar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('reserva-form');
+        const alert = document.getElementById('alert');
+        const submitBtn = document.getElementById('submit-btn');
+        const submitText = document.getElementById('submit-text');
+        const submitLoading = document.getElementById('submit-loading');
+        const clienteSelect = document.getElementById('cliente_id');
+        const dataInput = document.getElementById('data_reserva');
+
+        function showAlert(message, type) {
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function hideAlert() {
+            alert.style.display = 'none';
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                submitBtn.disabled = true;
+                submitText.style.display = 'none';
+                submitLoading.style.display = 'inline-block';
+            } else {
+                submitBtn.disabled = false;
+                submitText.style.display = 'inline';
+                submitLoading.style.display = 'none';
+            }
+        }
+
+        async function loadClientes() {
+            try {
+                const response = await fetch('/api/clientes');
+                const data = await response.json();
+
+                if (response.ok) {
+                    clienteSelect.innerHTML = '<option value="">Selecione um cliente</option>';
+                    data.data.forEach(cliente => {
+                        const option = document.createElement('option');
+                        option.value = cliente.id;
+                        option.textContent = `${cliente.nome} (${cliente.email})`;
+                        clienteSelect.appendChild(option);
+                    });
+                } else {
+                    showAlert('Erro ao carregar clientes', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro de conexão ao carregar clientes', 'error');
+            }
+        }
+
+        function setMinDate() {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const minDate = tomorrow.toISOString().split('T')[0];
+            dataInput.min = minDate;
+            dataInput.value = minDate;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlert();
+            setLoading(true);
+
+            const formData = new FormData(form);
+            const reservaData = {
+                cliente_id: parseInt(formData.get('cliente_id')),
+                data_reserva: formData.get('data_reserva'),
+                hora_reserva: formData.get('hora_reserva'),
+                numero_pessoas: parseInt(formData.get('numero_pessoas')),
+                observacoes: formData.get('observacoes').trim(),
+                status: formData.get('status')
+            };
+
+            if (!reservaData.cliente_id || !reservaData.data_reserva || !reservaData.hora_reserva || !reservaData.numero_pessoas) {
+                showAlert('Por favor, preencha todos os campos obrigatórios.', 'error');
+                setLoading(false);
+                return;
+            }
+
+            if (reservaData.numero_pessoas < 1 || reservaData.numero_pessoas > 20) {
+                showAlert('O número de pessoas deve estar entre 1 e 20.', 'error');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/reservas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(reservaData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('Reserva criada com sucesso!', 'success');
+                    form.reset();
+                    setMinDate();
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showAlert(data.error || 'Erro ao criar reserva', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro de conexão. Tente novamente.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadClientes();
+            setMinDate();
+        });
+    </script>
+</body>
+</html>
+

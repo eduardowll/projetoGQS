@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Reservas e Clientes</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sistema de Reservas e Clientes</h1>
+            <p>Gerencie suas reservas e clientes de forma eficiente</p>
+            
+            <div class="nav-buttons">
+                <a href="/clientes/novo" class="btn">
+                    <span>👤</span>
+                    Cadastrar Cliente
+                </a>
+                <a href="/reservas/novo" class="btn btn-secondary">
+                    <span>📅</span>
+                    Nova Reserva
+                </a>
+            </div>
+        </div>
+
+        <div class="data-table">
+            <h2>Clientes Cadastrados</h2>
+            <div id="clientes-loading" class="loading" style="display: none;"></div>
+            <div id="clientes-error" class="alert alert-error" style="display: none;"></div>
+            <table class="table" id="clientes-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Telefone</th>
+                        <th>Endereço</th>
+                    </tr>
+                </thead>
+                <tbody id="clientes-tbody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="data-table">
+            <h2>Reservas</h2>
+            <div id="reservas-loading" class="loading" style="display: none;"></div>
+            <div id="reservas-error" class="alert alert-error" style="display: none;"></div>
+            <table class="table" id="reservas-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Data</th>
+                        <th>Hora</th>
+                        <th>Pessoas</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="reservas-tbody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function loadClientes() {
+            const loading = document.getElementById('clientes-loading');
+            const error = document.getElementById('clientes-error');
+            const table = document.getElementById('clientes-table');
+            const tbody = document.getElementById('clientes-tbody');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/clientes');
+                const data = await response.json();
+
+                if (response.ok) {
+                    tbody.innerHTML = '';
+                    data.data.forEach(cliente => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${cliente.id}</td>
+                            <td>${cliente.nome}</td>
+                            <td>${cliente.email}</td>
+                            <td>${cliente.telefone}</td>
+                            <td>${cliente.endereco || '-'}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    table.style.display = 'table';
+                } else {
+                    throw new Error(data.error || 'Erro ao carregar clientes');
+                }
+            } catch (err) {
+                error.textContent = err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function loadReservas() {
+            const loading = document.getElementById('reservas-loading');
+            const error = document.getElementById('reservas-error');
+            const table = document.getElementById('reservas-table');
+            const tbody = document.getElementById('reservas-tbody');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/reservas');
+                const data = await response.json();
+
+                if (response.ok) {
+                    tbody.innerHTML = '';
+                    data.data.forEach(reserva => {
+                        const row = document.createElement('tr');
+                        const dataFormatada = new Date(reserva.data_reserva).toLocaleDateString('pt-BR');
+                        row.innerHTML = `
+                            <td>${reserva.id}</td>
+                            <td>${reserva.cliente_nome || 'N/A'}</td>
+                            <td>${dataFormatada}</td>
+                            <td>${reserva.hora_reserva}</td>
+                            <td>${reserva.numero_pessoas}</td>
+                            <td><span class="status-badge status-${reserva.status}">${reserva.status}</span></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    table.style.display = 'table';
+                } else {
+                    throw new Error(data.error || 'Erro ao carregar reservas');
+                }
+            } catch (err) {
+                error.textContent = err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadClientes();
+            loadReservas();
+        });
+    </script>
+</body>
+</html>
+
